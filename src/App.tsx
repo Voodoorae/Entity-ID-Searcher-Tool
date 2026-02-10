@@ -202,29 +202,36 @@ function App() {
                 )}
 
                 {/* Find the Ambiguous State block (approx line 170) */}
+{/* Updated Ambiguous State with Machine Logic */}
 {status === 'ambiguous' && (
   <div className="bg-amber-400/5 border border-amber-400/30 rounded-2xl p-8">
     <div className="flex items-start gap-6">
       <AlertCircle className="w-10 h-10 text-amber-400 shrink-0" />
       <div>
-        <h3 className="text-2xl font-black text-amber-400 mb-2">Entity Ambiguity Detected</h3>
+        <h3 className="text-2xl font-black text-amber-400 mb-2">Machine Confusion Detected</h3>
         <p className="text-white/80 mb-6">
-          AI models find multiple references for this name. Your brand authority is currently being diluted by similar topics or locations.
+          The Knowledge Graph recognizes your name, but it is confused about your <strong>Entity Type</strong>. It sees you as a general topic rather than a verified business.
         </p>
+        
         {result && (
-          <p className="text-sm font-bold text-white mb-4">
-            Closest Match: <span className="text-amber-400">{result.name}</span>
-          </p>
+          <div className="mb-6 p-4 bg-black/40 border border-amber-400/20 rounded-lg">
+            <p className="text-sm text-white/40 uppercase font-black mb-2">Machine Classification</p>
+            <p className="text-lg text-white font-medium">
+              Found as: <span className="text-amber-400">"{result.types.join(', ')}"</span>
+            </p>
+            <p className="text-xs text-amber-400/60 mt-2 italic">
+              *AI requires a 'LocalBusiness' or 'Organization' type to confidently recommend you.
+            </p>
+          </div>
         )}
         
-        {/* REFINED AUDIT LINK */}
         <a 
           href="https://go.becomefoundbyai.com/audit-results" 
           target="_blank" 
           rel="noopener noreferrer"
           className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline group"
         >
-          Run a Disambiguation Audit to clear these signals
+          Run a Disambiguation Audit to claim your 'Business' status
           <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
         </a>
       </div>
