@@ -53,7 +53,6 @@ function App() {
         }
       );
 
-      // Check for non-JSON responses (prevents the "Unexpected Token T" crash)
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("Cloud connection error: The server returned an invalid response. This usually happens if the search engine times out.");
@@ -76,7 +75,6 @@ function App() {
       }
     } catch (error) {
       setStatus('error');
-      // Clean up the error message for the user
       const msg = error instanceof Error ? error.message : 'An unexpected error occurred';
       setErrorMessage(msg.includes('Unexpected token') ? 'The search engine returned an unreadable format. Try a more specific brand name.' : msg);
     } finally {
@@ -212,15 +210,23 @@ function App() {
                         <h3 className="text-2xl font-black text-amber-400 mb-2">Entity Ambiguity Detected</h3>
                         <p className="text-white/80 mb-6">AI models find multiple references for this name. Without a unique ID, your brand authority is being diluted by similar topics or locations.</p>
                         {result && <p className="text-sm font-bold text-white mb-4">Closest Match: <span className="text-amber-400">{result.name}</span></p>}
-                        <button className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline">
-                          How to disambiguate your brand <ChevronRight className="w-4 h-4" />
-                        </button>
+                        
+                        {/* FIX 1: Functional link for disambiguation */}
+                        <a 
+                          href="https://go.becomefoundbyai.com/audit-results" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline group"
+                        >
+                          How to disambiguate your brand 
+                          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </a>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Invisible State (Tailored for clients like Annan Property) */}
+                {/* Invisible State */}
                 {status === 'ai-invisible' && (
                   <div className="bg-white/5 border border-white/20 rounded-2xl p-8">
                     <div className="flex items-start gap-6">
@@ -264,9 +270,18 @@ function App() {
                 <p className="text-white/60 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
                   Turn your website into a verified Knowledge Source. Get the <strong>Found By AI Toolkit</strong> and claim your Entity ID today.
                 </p>
-                <button className="px-10 py-5 bg-emerald-neon text-black rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(5,255,161,0.4)] transition-all">
-                  Get The Visibility Toolkit — £27
-                </button>
+                
+                {/* FIX 2: Functional checkout button */}
+                <a 
+                  href="https://go.becomefoundbyai.com/audit-results" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-block"
+                >
+                  <button className="px-10 py-5 bg-emerald-neon text-black rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(5,255,161,0.4)] transition-all">
+                    Get The Visibility Toolkit — £27
+                  </button>
+                </a>
               </div>
             </div>
           )}
