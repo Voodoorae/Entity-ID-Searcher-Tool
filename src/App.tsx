@@ -201,30 +201,36 @@ function App() {
                   </div>
                 )}
 
-                {/* Ambiguous State */}
-                {status === 'ambiguous' && (
-                  <div className="bg-amber-400/5 border border-amber-400/30 rounded-2xl p-8">
-                    <div className="flex items-start gap-6">
-                      <AlertCircle className="w-10 h-10 text-amber-400 shrink-0" />
-                      <div>
-                        <h3 className="text-2xl font-black text-amber-400 mb-2">Entity Ambiguity Detected</h3>
-                        <p className="text-white/80 mb-6">AI models find multiple references for this name. Without a unique ID, your brand authority is being diluted by similar topics or locations.</p>
-                        {result && <p className="text-sm font-bold text-white mb-4">Closest Match: <span className="text-amber-400">{result.name}</span></p>}
-                        
-                        {/* FIX 1: Functional link for disambiguation */}
-                        <a 
-                          href="https://go.becomefoundbyai.com/audit-results" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline group"
-                        >
-                          How to disambiguate your brand 
-                          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Find the Ambiguous State block (approx line 170) */}
+{status === 'ambiguous' && (
+  <div className="bg-amber-400/5 border border-amber-400/30 rounded-2xl p-8">
+    <div className="flex items-start gap-6">
+      <AlertCircle className="w-10 h-10 text-amber-400 shrink-0" />
+      <div>
+        <h3 className="text-2xl font-black text-amber-400 mb-2">Entity Ambiguity Detected</h3>
+        <p className="text-white/80 mb-6">
+          AI models find multiple references for this name. Your brand authority is currently being diluted by similar topics or locations.
+        </p>
+        {result && (
+          <p className="text-sm font-bold text-white mb-4">
+            Closest Match: <span className="text-amber-400">{result.name}</span>
+          </p>
+        )}
+        
+        {/* REFINED AUDIT LINK */}
+        <a 
+          href="https://go.becomefoundbyai.com/audit-results" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline group"
+        >
+          Run a Disambiguation Audit to clear these signals
+          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+        </a>
+      </div>
+    </div>
+  </div>
+)}
 
                 {/* Invisible State */}
                 {status === 'ai-invisible' && (
