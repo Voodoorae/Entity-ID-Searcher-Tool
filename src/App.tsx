@@ -17,9 +17,11 @@ function App() {
   const [result, setResult] = useState<EntityResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
-  // NUCLEAR FIX: We are strictly multiplying the raw score by 100. 
-  // If Google says 0.05, it MUST show 5. No defaults allowed.
-  const rawScore = result?.resultScore ? Math.round(result.resultScore * 100) : (status === 'ai-invisible' ? 0 : null);
+  // STABLE MATH: This ensures the score is always between 0 and 100.
+  // It handles both tiny decimals (0.05) and larger numbers (12) correctly.
+  const displayScore = result?.resultScore 
+    ? Math.min(Math.round(result.resultScore < 1 ? result.resultScore * 100 : result.resultScore), 100) 
+    : (status === 'ai-invisible' ? 0 : null);
   
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +56,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white px-4 py-16">
+    <div className="min-h-screen bg-black text-white px-4 py-16 font-sans">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <Radar className="w-12 h-12 text-emerald-400 mx-auto mb-4 animate-spin" />
@@ -75,11 +77,11 @@ function App() {
 
           {status === 'loading' && <p className="text-center text-emerald-400">Scanning...</p>}
 
-          {rawScore !== null && status !== 'loading' && (
+          {displayScore !== null && status !== 'loading' && (
             <div className="text-center mb-8">
               <p className="text-gray-500 text-xs uppercase mb-2">Confidence Score</p>
-              <div className={`text-7xl font-bold ${rawScore < 50 ? 'text-red-500' : 'text-emerald-400'}`}>
-                {rawScore}%
+              <div className={`text-7xl font-bold ${displayScore < 50 ? 'text-red-500' : 'text-emerald-400'}`}>
+                {displayScore}%
               </div>
             </div>
           )}
@@ -88,12 +90,14 @@ function App() {
         {status && status !== 'loading' && (
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
              <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-red-500 font-bold mb-1">Critical Trust Gap</p>
-                <p className="text-white text-sm mb-2 uppercase font-mono">
-                  Location: <span className="text-red-500">{result?.location || 'UNKNOWN / NOT INDEXED'}</span>
+                <p className="text-red-500 font-bold mb-1 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Critical Trust Gap
                 </p>
-                <p className="text-gray-400 text-sm italic">
-                  "Invisible to 'Agents in {result?.location || 'Edinburgh'}' AI queries."
+                <p className="text-white text-sm mb-2 font-mono">
+                  LOCATION: <span className="text-red-500 font-bold">{result?.location || 'UNKNOWN / NOT INDEXED'}</span>
+                </p>
+                <p className="text-gray-400 text-xs italic">
+                  "Invisible to 'Agents in {result?.location || 'your area'}' AI queries."
                 </p>
               </div>
             <button className="w-full py-4 bg-emerald-500 text-black rounded-lg font-bold">Claim Toolkit</button>
