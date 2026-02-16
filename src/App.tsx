@@ -20,23 +20,24 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showScanLine, setShowScanLine] = useState(false);
 
- const getFoundScore = () => {
+  // REAL ESTATE CALIBRATED SCORING LOGIC
+  const getFoundScore = () => {
     if (status === 'loading' || !result) return null;
     if (status === 'ai-invisible') return 0;
 
     // 1. NORMALIZE GOOGLE'S CONFIDENCE
-    // We treat a resultScore of 600 as the 'Gold Standard' for 100% confidence.
+    // We treat a resultScore of 600 as the 'Gold Standard' for 100% certainty.
     let baseScore = Math.min((result.resultScore / 600) * 100, 98);
 
-    // 2. REAL ESTATE NICHE AUDIT
-    // We check if the AI sees them as a specific Real Estate entity vs just a 'Thing'
+    // 2. REAL ESTATE ENTITY AUDIT
+    // We check if the AI sees them as a specific Real Estate professional vs a generic 'Thing'
     const isRealEstateEntity = result.types.some(t => 
       ['RealEstateAgent', 'RealEstateListing', 'HomeAndConstructionBusiness', 'Residence'].includes(t)
     );
 
     // 3. THE "ENTITY CLARITY" PENALTY
     // If they aren't recognized as Real Estate specifically, they are 'confused' in the graph.
-    // We drop their score by 40% to reflect this "Trust Gap".
+    // We drop their score by 40% to reflect the "Trust Gap".
     if (!isRealEstateEntity) {
       baseScore = baseScore * 0.6;
     }
@@ -46,10 +47,33 @@ function App() {
 
     return Math.round(baseScore);
   };
-  // 4. Cap the results for the "Trust Gap"
-  // Even a well-known agent without proper Schema shouldn't exceed 65%
-  return Math.round(baseScore);
-};
+
+  const foundScore = getFoundScore();
+  const isHighScore = foundScore !== null && foundScore > 70;
+  const isLowScore = foundScore !== null && foundScore < 50;
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!brandName.trim()) return;
+
+    setIsSearching(true);
+    setStatus('loading');
+    setResult(null);
+    setErrorMessage('');
+    setShowScanLine(true);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-graph-search`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query: brandName }),
+        }
+      );
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
@@ -57,6 +81,9 @@ function App() {
       }
 
       const data = await response.json();
+      
+      // LOG TO CONSOLE: This lets you verify the resultScore coming from Google
+      console.log("AI Audit Data:", data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to complete the audit.');
@@ -96,11 +123,11 @@ function App() {
             <div className="inline-flex items-center justify-center mb-6">
               <Radar className={`w-14 h-14 text-emerald-neon ${isSearching ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
             </div>
-            <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tight">
-              The Entity ID <span className="text-emerald-neon drop-shadow-[0_0_10px_rgba(5,255,161,0.4)]">Searcher</span>
+            <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tight uppercase">
+              RE Estate <span className="text-emerald-neon">Entity Search</span>
             </h1>
             <p className="text-xl text-white/60 max-w-2xl mx-auto">
-              Audit how AI perceives your brand. If you don't have a Machine-Readable ID, you don't exist in the Knowledge Graph.
+              Does the Knowledge Graph see you as a Real Estate authority, or just a generic 'Thing'?
             </p>
           </div>
 
@@ -108,7 +135,7 @@ function App() {
           <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 mb-8 shadow-2xl">
             <form onSubmit={handleSearch} className="mb-0">
               <label htmlFor="brandName" className="block text-sm font-bold text-emerald-neon uppercase tracking-widest mb-3">
-                Brand Name Audit
+                Agency Name Audit
               </label>
               <div className="flex flex-col md:flex-row gap-4">
                 <input
@@ -116,7 +143,7 @@ function App() {
                   type="text"
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
-                  placeholder="e.g. L'alba D'oro"
+                  placeholder="e.g. Niksen Property"
                   className="flex-1 px-6 py-4 bg-black/40 border border-white/10 rounded-xl focus:border-emerald-neon focus:ring-1 focus:ring-emerald-neon outline-none text-white placeholder-white/20 transition-all text-lg"
                   disabled={isSearching}
                 />
@@ -130,20 +157,12 @@ function App() {
               </div>
             </form>
 
-            {/* Loading State */}
-            {status === 'loading' && (
-              <div className="text-center py-20">
-                <div className="w-20 h-20 border-4 border-emerald-neon/20 border-t-emerald-neon rounded-full animate-spin inline-block"></div>
-                <p className="mt-8 text-emerald-neon font-mono tracking-tighter animate-pulse uppercase">Intercepting signals from knowledge vault...</p>
-              </div>
-            )}
-
             {/* Results Display */}
             {foundScore !== null && status !== 'loading' && (
               <div className="mt-12 pt-8 border-t border-white/10">
                 <div className="text-center mb-10">
-                  <p className="text-white/40 text-xs uppercase font-black tracking-[0.3em] mb-4">AI Visibility Score</p>
-                  <div className={`text-8xl font-black transition-all ${isHighScore ? 'text-emerald-neon drop-shadow-[0_0_20px_rgba(5,255,161,0.5)]' : isLowScore ? 'text-amber-400' : 'text-white'}`}>
+                  <p className="text-white/40 text-xs uppercase font-black tracking-[0.3em] mb-4">AI Entity Confidence</p>
+                  <div className={`text-8xl font-black transition-all ${isHighScore ? 'text-emerald-neon' : isLowScore ? 'text-amber-400' : 'text-white'}`}>
                     {foundScore}%
                   </div>
                   <div className="max-w-md mx-auto h-2 bg-white/5 rounded-full mt-6 overflow-hidden">
@@ -151,72 +170,27 @@ function App() {
                   </div>
                 </div>
 
-                {/* Ambiguous State - FIXED VISIBILITY */}
-                {status === 'ambiguous' && (
-                  <div className="bg-amber-400/5 border border-amber-400/30 rounded-2xl p-8">
-                    <div className="flex items-start gap-6">
-                      <AlertCircle className="w-10 h-10 text-amber-400 shrink-0" />
-                      <div>
-                        <h3 className="text-2xl font-black text-amber-400 mb-2 uppercase tracking-tight">Machine Confusion Detected</h3>
-                        <p className="text-white/80 mb-6 leading-relaxed">
-                          The Knowledge Graph recognizes your name, but it is confused about your <strong>Entity Type</strong>. It sees you as a general topic or "Thing" rather than a verified business.
-                        </p>
-                        
-                        {result && (
-                          <div className="mb-6 p-6 bg-black/60 border border-amber-400/30 rounded-xl shadow-inner">
-                            <p className="text-white/40 text-[10px] font-black uppercase mb-3 tracking-widest">Machine Classification</p>
-                            <p className="text-xl text-white font-bold mb-4 italic">
-                              Found as: <span className="text-amber-400">"{result.types.join(', ')}"</span>
-                            </p>
-                            
-                            {/* ENHANCED READABILITY FOR THE WARNING LINE */}
-                            <div className="flex items-start gap-2 pt-4 border-t border-white/10">
-                              <Info className="w-5 h-5 text-emerald-neon shrink-0 mt-0.5" />
-                              <p className="text-sm md:text-base text-white font-medium leading-snug">
-                                <span className="text-emerald-neon font-bold">Action Required:</span> AI agents require a <span className="underline decoration-emerald-neon/50">'LocalBusiness'</span> or <span className="underline decoration-emerald-neon/50">'Organization'</span> type to confidently recommend you.
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        <a 
-                          href="https://go.becomefoundbyai.com/audit-results" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-amber-400 text-sm font-black flex items-center gap-2 hover:underline group"
-                        >
-                          Run a Disambiguation Audit to claim your 'Business' status
-                          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-                        </a>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Verified State */}
+                {/* Machine-Verified (High or Low Confidence) */}
                 {status === 'machine-verified' && result && (
-                  <div className="bg-emerald-neon/5 border border-emerald-neon/30 rounded-2xl p-8 shadow-lg shadow-emerald-neon/5">
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
                     <div className="flex items-start gap-6">
-                      <CheckCircle className="w-10 h-10 text-emerald-neon shrink-0" />
+                      <CheckCircle className={`w-10 h-10 shrink-0 ${isHighScore ? 'text-emerald-neon' : 'text-amber-400'}`} />
                       <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-3 mb-6">
-                          <h3 className="text-3xl font-black text-white">{result.name}</h3>
-                          <span className="px-3 py-1 bg-emerald-neon text-black text-[10px] font-black rounded-md tracking-tighter uppercase">Machine-Verified</span>
+                        <h3 className="text-3xl font-black text-white mb-2">{result.name}</h3>
+                        <div className="mb-6">
+                           <p className="text-white/40 text-[10px] font-black uppercase mb-2">Entity Classification</p>
+                           <div className="flex flex-wrap gap-2">
+                            {result.types.map((type, i) => (
+                              <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[11px] font-bold text-white/60 lowercase">{type}</span>
+                            ))}
+                          </div>
                         </div>
-                        {result.entityId && (
-                          <div className="mb-6 group">
-                            <p className="text-white/40 text-[10px] font-black uppercase mb-2">Knowledge Graph ID</p>
-                            <code className="block bg-black/60 p-4 rounded-lg border border-white/10 text-emerald-neon font-mono text-sm break-all group-hover:border-emerald-neon/50 transition-colors">
-                              {result.entityId}
-                            </code>
+                        {foundScore < 70 && (
+                          <div className="p-4 bg-amber-400/10 border border-amber-400/30 rounded-xl">
+                            <p className="text-amber-400 font-bold text-sm">Critical Gap Detected: Low Niche Specificity</p>
+                            <p className="text-white/70 text-sm mt-1">The Knowledge Graph sees you, but lacks the confidence to categorize you as a 'RealEstateAgent'. This causes AI agents to bypass you for niche queries.</p>
                           </div>
                         )}
-                        {result.description && <p className="text-white/70 leading-relaxed mb-6 italic border-l-2 border-emerald-neon pl-4">"{result.description}"</p>}
-                        <div className="flex flex-wrap gap-2">
-                          {result.types.map((type, i) => (
-                            <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[11px] font-bold text-white/60 lowercase">{type}</span>
-                          ))}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -224,46 +198,28 @@ function App() {
 
                 {/* Invisible State */}
                 {status === 'ai-invisible' && (
-                  <div className="bg-white/5 border border-white/20 rounded-2xl p-8">
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-8">
                     <div className="flex items-start gap-6">
-                      <XCircle className="w-10 h-10 text-white/40 shrink-0" />
+                      <XCircle className="w-10 h-10 text-red-500 shrink-0" />
                       <div>
                         <h3 className="text-2xl font-black text-white mb-2 uppercase">Status: AI-Invisible</h3>
-                        <p className="text-white/60 leading-relaxed mb-6">
-                          No unique Knowledge Graph ID found for "{brandName}". Despite physical history or SEO rankings, this brand has not been translated into a machine-readable entity.
-                        </p>
-                        <div className="p-4 bg-white/5 rounded-xl border border-white/10 inline-block">
-                          <p className="text-xs text-white/40 font-bold uppercase tracking-widest mb-1">Impact</p>
-                          <p className="text-sm text-emerald-neon font-bold leading-tight">ChatGPT and Gemini cannot confidently cite this brand as a factual entity.</p>
-                        </div>
+                        <p className="text-white/60 leading-relaxed mb-6">No unique Machine-ID found. To AI models like ChatGPT, this brand does not exist as a verified entity.</p>
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             )}
-
-            {/* Error Message */}
-            {status === 'error' && (
-              <div className="mt-8 bg-red-500/10 border border-red-500/30 rounded-xl p-6 flex items-start gap-4 shadow-xl">
-                <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-                <div>
-                  <h4 className="font-bold text-red-500 mb-1 uppercase tracking-wider">Audit Interrupted</h4>
-                  <p className="text-red-200/70 text-sm leading-relaxed">{errorMessage}</p>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Call to Action */}
           {status && status !== 'loading' && (
-            <div className="relative group overflow-hidden bg-gradient-to-br from-emerald-neon to-emerald-800 rounded-3xl p-1 shadow-2xl transition-transform hover:scale-[1.01]">
-              <div className="bg-black/90 rounded-[calc(1.5rem-1px)] p-10 text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-neon/50 to-transparent"></div>
-                <h2 className="text-3xl md:text-4xl font-black mb-4 italic uppercase tracking-tighter">Fix the <span className="text-emerald-neon underline decoration-2 underline-offset-8">Trust Gap</span></h2>
-                <p className="text-white/60 text-lg mb-8 max-w-xl mx-auto leading-relaxed">Turn your website into a verified Knowledge Source. Get the <strong>Found By AI Toolkit</strong> and claim your Entity ID today.</p>
-                <a href="https://go.becomefoundbyai.com/audit-results" target="_blank" rel="noopener noreferrer" className="inline-block">
-                  <button className="px-10 py-5 bg-emerald-neon text-black rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(5,255,161,0.4)] transition-all uppercase tracking-widest">Get The Visibility Toolkit — £27</button>
+            <div className="bg-gradient-to-br from-emerald-neon to-emerald-800 rounded-3xl p-1 shadow-2xl">
+              <div className="bg-black/90 rounded-[calc(1.5rem-1px)] p-10 text-center">
+                <h2 className="text-3xl font-black mb-4 uppercase">Fix Your <span className="text-emerald-neon">Entity Signal</span></h2>
+                <p className="text-white/60 mb-8 max-w-xl mx-auto">Get the <strong>Developer Handoff Manifest</strong>. A ready-to-use JSON-LD file for your web team that fixes your Knowledge Graph categorization.</p>
+                <a href="https://go.becomefoundbyai.com/audit-results" target="_blank" rel="noopener noreferrer">
+                  <button className="px-10 py-5 bg-emerald-neon text-black rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(5,255,161,0.4)] transition-all">Download Real Estate Toolkit — £27</button>
                 </a>
               </div>
             </div>
