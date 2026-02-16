@@ -20,36 +20,35 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showScanLine, setShowScanLine] = useState(false);
 
-  // REAL ESTATE CALIBRATED SCORING LOGIC
+  // REAL ESTATE CALIBRATED SCORING (Direct from Knowledge Graph)
   const getFoundScore = () => {
     if (status === 'loading' || !result) return null;
     if (status === 'ai-invisible') return 0;
 
-    // 1. NORMALIZE GOOGLE'S CONFIDENCE
-    // We treat a resultScore of 600 as the 'Gold Standard' for 100% certainty.
+    // 1. DIRECT KG SCORE NORMALIZATION
+    // We treat a resultScore of 600 as a 'Perfect' 100% Signal.
+    // Outdated sites usually return scores under 100, resulting in <15% visibility.
     let baseScore = Math.min((result.resultScore / 600) * 100, 98);
 
-    // 2. REAL ESTATE ENTITY AUDIT
-    // We check if the AI sees them as a specific Real Estate professional vs a generic 'Thing'
+    // 2. REAL ESTATE NICHE AUDIT
     const isRealEstateEntity = result.types.some(t => 
       ['RealEstateAgent', 'RealEstateListing', 'HomeAndConstructionBusiness', 'Residence'].includes(t)
     );
 
     // 3. THE "ENTITY CLARITY" PENALTY
-    // If they aren't recognized as Real Estate specifically, they are 'confused' in the graph.
-    // We drop their score by 40% to reflect the "Trust Gap".
+    // If Google sees them but doesn't know they are a Real Estate agency, 
+    // we slash the score by 40% to reveal the "Trust Gap".
     if (!isRealEstateEntity) {
       baseScore = baseScore * 0.6;
     }
 
-    // 4. AMBIGUITY CAP
     if (status === 'ambiguous') return Math.min(Math.round(baseScore), 45);
 
-    return Math.round(baseScore);
+    return Math.max(Math.round(baseScore), 5); // Minimum 5% if found
   };
 
   const foundScore = getFoundScore();
-  const isHighScore = foundScore !== null && foundScore > 70;
+  const isHighScore = foundScore !== null && foundScore > 75;
   const isLowScore = foundScore !== null && foundScore < 50;
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -75,33 +74,20 @@ function App() {
         }
       );
 
-      const contentType = response.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        throw new Error("Cloud connection error: The server returned an invalid response.");
-      }
-
       const data = await response.json();
-      
-      // LOG TO CONSOLE: This lets you verify the resultScore coming from Google
-      console.log("AI Audit Data:", data);
+      console.log("Raw Knowledge Graph Data:", data); // Debugging
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to complete the audit.');
-      }
+      if (!response.ok) throw new Error(data.error || 'Audit Failed');
 
-      if (data.status === 'machine-verified') {
-        setStatus('machine-verified');
-        setResult(data.result);
-      } else if (data.status === 'ambiguous') {
-        setStatus('ambiguous');
+      if (data.status === 'machine-verified' || data.status === 'ambiguous') {
+        setStatus(data.status);
         setResult(data.result);
       } else {
         setStatus('ai-invisible');
       }
     } catch (error) {
       setStatus('error');
-      const msg = error instanceof Error ? error.message : 'An unexpected error occurred';
-      setErrorMessage(msg);
+      setErrorMessage(error instanceof Error ? error.message : 'Connection Error');
     } finally {
       setIsSearching(false);
       setShowScanLine(false);
@@ -109,117 +95,98 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-space-black text-white selection:bg-emerald-neon/30">
+    <div className="min-h-screen bg-black text-white selection:bg-emerald-500/30 font-sans">
       {showScanLine && (
         <div className="fixed inset-0 pointer-events-none z-50">
-          <div className="w-full h-1 bg-emerald-neon/20 shadow-[0_0_15px_rgba(5,255,161,0.5)] animate-scan" />
+          <div className="w-full h-1 bg-emerald-400/20 shadow-[0_0_15px_rgba(5,255,161,0.5)] animate-scan" />
         </div>
       )}
 
-      <div className="container mx-auto px-4 py-16 relative z-10">
-        <div className="max-w-4xl mx-auto">
+      <div className="container mx-auto px-4 py-20 relative">
+        <div className="max-w-3xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center justify-center mb-6">
-              <Radar className={`w-14 h-14 text-emerald-neon ${isSearching ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
-            </div>
-            <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tight uppercase">
-              RE Estate <span className="text-emerald-neon">Entity Search</span>
+          <div className="text-center mb-12">
+            <Radar className={`w-16 h-16 text-emerald-400 mx-auto mb-6 ${isSearching ? 'animate-spin' : ''}`} />
+            <h1 className="text-4xl md:text-6xl font-black tracking-tighter uppercase mb-4">
+              Real Estate <span className="text-emerald-400">Entity Audit</span>
             </h1>
-            <p className="text-xl text-white/60 max-w-2xl mx-auto">
-              Does the Knowledge Graph see you as a Real Estate authority, or just a generic 'Thing'?
-            </p>
+            <p className="text-gray-400 text-lg">Knowledge Graph Visibility for Property Professionals</p>
           </div>
 
-          {/* Search Box */}
-          <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 mb-8 shadow-2xl">
-            <form onSubmit={handleSearch} className="mb-0">
-              <label htmlFor="brandName" className="block text-sm font-bold text-emerald-neon uppercase tracking-widest mb-3">
-                Agency Name Audit
-              </label>
-              <div className="flex flex-col md:flex-row gap-4">
-                <input
-                  id="brandName"
-                  type="text"
-                  value={brandName}
-                  onChange={(e) => setBrandName(e.target.value)}
-                  placeholder="e.g. Niksen Property"
-                  className="flex-1 px-6 py-4 bg-black/40 border border-white/10 rounded-xl focus:border-emerald-neon focus:ring-1 focus:ring-emerald-neon outline-none text-white placeholder-white/20 transition-all text-lg"
-                  disabled={isSearching}
-                />
-                <button
-                  type="submit"
-                  disabled={isSearching || !brandName.trim()}
-                  className="px-8 py-4 bg-emerald-neon text-black rounded-xl font-black hover:scale-105 disabled:opacity-50 disabled:scale-100 transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(5,255,161,0.3)]"
-                >
-                  {isSearching ? <>Scanning...</> : <><Search className="w-5 h-5" /> Run Audit</>}
-                </button>
-              </div>
+          {/* Search */}
+          <div className="bg-white/5 border border-white/10 rounded-3xl p-2 mb-10">
+            <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-2">
+              <input
+                type="text"
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="Enter Agency Name..."
+                className="flex-1 px-8 py-5 bg-transparent outline-none text-xl border-none focus:ring-0 placeholder-white/20"
+              />
+              <button
+                disabled={isSearching || !brandName.trim()}
+                className="px-10 py-5 bg-emerald-400 text-black rounded-2xl font-black text-lg hover:bg-emerald-300 transition-all uppercase"
+              >
+                {isSearching ? 'Scanning...' : 'Audit Agency'}
+              </button>
             </form>
+          </div>
 
-            {/* Results Display */}
-            {foundScore !== null && status !== 'loading' && (
-              <div className="mt-12 pt-8 border-t border-white/10">
-                <div className="text-center mb-10">
-                  <p className="text-white/40 text-xs uppercase font-black tracking-[0.3em] mb-4">AI Entity Confidence</p>
-                  <div className={`text-8xl font-black transition-all ${isHighScore ? 'text-emerald-neon' : isLowScore ? 'text-amber-400' : 'text-white'}`}>
-                    {foundScore}%
+          {/* Results Area */}
+          {status && status !== 'loading' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="text-center mb-12">
+                <span className="text-[10px] font-bold tracking-[0.4em] text-gray-500 uppercase">AI Visibility Score</span>
+                <div className={`text-9xl font-black mt-2 ${isHighScore ? 'text-emerald-400' : isLowScore ? 'text-amber-400' : 'text-red-500'}`}>
+                  {foundScore}%
+                </div>
+              </div>
+
+              {result && (
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-8 mb-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <CheckCircle className="text-emerald-400 w-8 h-8" />
+                    <h2 className="text-2xl font-bold">{result.name}</h2>
                   </div>
-                  <div className="max-w-md mx-auto h-2 bg-white/5 rounded-full mt-6 overflow-hidden">
-                    <div className={`h-full transition-all duration-1000 ease-out ${isHighScore ? 'bg-emerald-neon' : isLowScore ? 'bg-amber-400' : 'bg-white/30'}`} style={{ width: `${foundScore}%` }} />
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Knowledge Graph ID</p>
+                      <code className="block bg-black p-4 rounded-xl border border-white/5 text-emerald-400 text-sm break-all">
+                        {result.entityId || 'No machine-readable ID assigned'}
+                      </code>
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Machine Classification</p>
+                      <div className="flex flex-wrap gap-2">
+                        {result.types.map((t) => (
+                          <span key={t} className="px-3 py-1 bg-white/10 rounded-md text-[10px] font-bold text-gray-300">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {isLowScore && (
+                      <div className="flex gap-4 p-5 bg-amber-400/10 border border-amber-400/20 rounded-2xl">
+                        <AlertCircle className="text-amber-400 shrink-0" />
+                        <p className="text-sm text-amber-100/80">
+                          <strong className="text-amber-400">Critical Trust Gap:</strong> Your data signals are too weak for AI models to confidently categorize you as a Real Estate Agency. You are currently invisible to "Agents in [Your Area]" queries.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
 
-                {/* Machine-Verified (High or Low Confidence) */}
-                {status === 'machine-verified' && result && (
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
-                    <div className="flex items-start gap-6">
-                      <CheckCircle className={`w-10 h-10 shrink-0 ${isHighScore ? 'text-emerald-neon' : 'text-amber-400'}`} />
-                      <div className="flex-1">
-                        <h3 className="text-3xl font-black text-white mb-2">{result.name}</h3>
-                        <div className="mb-6">
-                           <p className="text-white/40 text-[10px] font-black uppercase mb-2">Entity Classification</p>
-                           <div className="flex flex-wrap gap-2">
-                            {result.types.map((type, i) => (
-                              <span key={i} className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-[11px] font-bold text-white/60 lowercase">{type}</span>
-                            ))}
-                          </div>
-                        </div>
-                        {foundScore < 70 && (
-                          <div className="p-4 bg-amber-400/10 border border-amber-400/30 rounded-xl">
-                            <p className="text-amber-400 font-bold text-sm">Critical Gap Detected: Low Niche Specificity</p>
-                            <p className="text-white/70 text-sm mt-1">The Knowledge Graph sees you, but lacks the confidence to categorize you as a 'RealEstateAgent'. This causes AI agents to bypass you for niche queries.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Invisible State */}
-                {status === 'ai-invisible' && (
-                  <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-8">
-                    <div className="flex items-start gap-6">
-                      <XCircle className="w-10 h-10 text-red-500 shrink-0" />
-                      <div>
-                        <h3 className="text-2xl font-black text-white mb-2 uppercase">Status: AI-Invisible</h3>
-                        <p className="text-white/60 leading-relaxed mb-6">No unique Machine-ID found. To AI models like ChatGPT, this brand does not exist as a verified entity.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Call to Action */}
-          {status && status !== 'loading' && (
-            <div className="bg-gradient-to-br from-emerald-neon to-emerald-800 rounded-3xl p-1 shadow-2xl">
-              <div className="bg-black/90 rounded-[calc(1.5rem-1px)] p-10 text-center">
-                <h2 className="text-3xl font-black mb-4 uppercase">Fix Your <span className="text-emerald-neon">Entity Signal</span></h2>
-                <p className="text-white/60 mb-8 max-w-xl mx-auto">Get the <strong>Developer Handoff Manifest</strong>. A ready-to-use JSON-LD file for your web team that fixes your Knowledge Graph categorization.</p>
-                <a href="https://go.becomefoundbyai.com/audit-results" target="_blank" rel="noopener noreferrer">
-                  <button className="px-10 py-5 bg-emerald-neon text-black rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(5,255,161,0.4)] transition-all">Download Real Estate Toolkit — £27</button>
+              {/* CTA Section */}
+              <div className="bg-emerald-400 text-black rounded-3xl p-10 text-center">
+                <h3 className="text-3xl font-black uppercase mb-4">Fix the Developer Gap</h3>
+                <p className="font-bold mb-8 opacity-80">Download the Real Estate Entity Manifest: A technical JSON-LD file to hand directly to your web developers.</p>
+                <a 
+                  href="https://go.becomefoundbyai.com/audit-results" 
+                  className="inline-block bg-black text-white px-10 py-5 rounded-2xl font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                >
+                  Get the Toolkit — £27
                 </a>
               </div>
             </div>
