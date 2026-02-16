@@ -7,6 +7,7 @@ interface EntityResult {
   types: string[];
   description?: string;
   url?: string;
+  resultScore: number;
 }
 
 type Status = 'machine-verified' | 'ambiguous' | 'ai-invisible' | 'loading' | 'error' | null;
