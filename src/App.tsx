@@ -22,15 +22,17 @@ function App() {
 
   const getFoundScore = () => {
     if (status === 'ai-invisible') return 0;
-    if (!result || result.resultScore === undefined) {
-      if (status === 'machine-verified') return 70;
-      if (status === 'ambiguous') return 30;
-      return null;
+    // CRITICAL FIX: Use the actual decimal score from Google (0.05 = 5%)
+    if (result && result.resultScore !== undefined) {
+      return Math.min(Math.round(result.resultScore * 100), 100);
     }
-    return Math.min(Math.round(result.resultScore * 100), 100);
+    if (status === 'machine-verified') return 65; 
+    if (status === 'ambiguous') return 35;
+    return null;
   };
 
   const foundScore = getFoundScore();
+  const isLowScore = foundScore !== null && foundScore < 50;
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +60,7 @@ function App() {
       }
     } catch (error) {
       setStatus('error');
-      setErrorMessage('Search failed.');
+      setErrorMessage('Audit failed. Please try again.');
     } finally {
       setIsSearching(false);
     }
@@ -68,59 +70,63 @@ function App() {
     <div className="min-h-screen bg-black text-white px-4 py-16 font-sans">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <Radar className="w-12 h-12 text-emerald-400 mx-auto mb-4 animate-spin" />
-          <h1 className="text-5xl font-bold mb-2 text-white">Entity ID <span className="text-emerald-400">Searcher</span></h1>
+          <Radar className="w-12 h-12 text-emerald-400 mx-auto mb-4 animate-spin" style={{ animationDuration: '3s' }} />
+          <h1 className="text-5xl font-bold mb-2">Entity ID <span className="text-emerald-400">Searcher</span></h1>
           <p className="text-gray-400">Audit how AI perceives your real estate authority</p>
         </div>
 
-        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8">
+        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8 shadow-2xl">
           <form onSubmit={handleSearch} className="flex gap-3 mb-8">
             <input
               type="text"
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
-              placeholder="Enter Agency Name..."
-              className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg outline-none focus:border-emerald-500"
+              placeholder="Agency Name..."
+              className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg outline-none focus:border-emerald-500 transition-all"
             />
-            <button type="submit" className="px-6 py-3 bg-emerald-500 text-black rounded-lg font-bold">Run Audit</button>
+            <button type="submit" className="px-8 py-3 bg-emerald-500 text-black rounded-lg font-bold hover:bg-emerald-400 transition-all">Audit</button>
           </form>
 
-          {status === 'loading' && <p className="text-center text-emerald-400 animate-pulse">Scanning AI Knowledge Graph...</p>}
+          {status === 'loading' && <p className="text-center text-emerald-400 animate-pulse">Querying Knowledge Graph...</p>}
 
           {foundScore !== null && status !== 'loading' && (
             <div className="text-center mb-8">
-              <p className="text-gray-500 uppercase text-xs tracking-widest mb-2">Visibility Score</p>
-              <div className="text-7xl font-bold text-emerald-400">{foundScore}%</div>
+              <p className="text-gray-500 uppercase text-xs tracking-widest mb-2">AI Visibility Score</p>
+              <div className={`text-7xl font-bold ${isLowScore ? 'text-red-500' : 'text-emerald-400'}`}>
+                {foundScore}%
+              </div>
             </div>
           )}
 
           {status === 'machine-verified' && result && (
             <div className="border border-emerald-500/30 bg-emerald-500/5 p-6 rounded-xl">
               <h3 className="text-2xl font-bold text-emerald-400 mb-2">{result.name}</h3>
-              <p className="text-gray-400 text-sm">{result.description || 'Verified Entity found.'}</p>
+              <p className="text-gray-400 text-sm italic">{result.description || 'Verified entity found in Knowledge Graph.'}</p>
             </div>
           )}
         </div>
 
         {status && status !== 'loading' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8">
-            <div className="mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <p className="text-red-500 font-bold flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5" /> Critical Trust Gap
-              </p>
-              <div className="space-y-2">
-                <p className="text-white text-sm">
-                  Detected Location: <span className="text-red-500 font-mono font-bold uppercase">{result?.location || 'UNKNOWN / NOT INDEXED'}</span>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 text-center">
+            {isLowScore && (
+              <div className="mb-8 p-6 bg-red-500/10 border border-red-500/30 rounded-xl text-left">
+                <p className="text-red-500 font-bold flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-5 h-5" /> Critical Trust Gap
                 </p>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  Because your location is not verified in the Knowledge Graph, you are currently invisible to "Agents in <span className="italic underline">{result?.location || 'Your City'}</span>" AI queries.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-white text-sm">
+                    Verified Location: <span className="text-red-500 font-mono font-bold uppercase">{result?.location || 'UNKNOWN / NOT INDEXED'}</span>
+                  </p>
+                  <p className="text-gray-400 text-sm leading-relaxed">
+                    AI models cannot confidently pinpoint your service area. You are currently invisible to "Agents in <span className="italic underline">{result?.location || 'Edinburgh'}</span>" queries.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
             
-            <h2 className="text-2xl font-bold mb-4 text-center">Bridge the Gap</h2>
-            <p className="text-gray-400 text-center mb-6 text-sm">Your AI Visibility Score is dangerously low. Claim your toolkit to fix your Entity signals.</p>
-            <button className="w-full py-4 bg-emerald-500 text-black rounded-lg font-bold text-lg shadow-[0_0_20px_rgba(16,185,129,0.2)]">
+            <h2 className="text-2xl font-bold mb-4">Secure Your AI Authority</h2>
+            <p className="text-gray-400 mb-8 text-sm">Your visibility is dangerously low. Claim your toolkit to verify your Entity signals.</p>
+            <button className="w-full py-4 bg-emerald-500 text-black rounded-lg font-bold text-lg">
               Claim the £27 Toolkit
             </button>
           </div>
