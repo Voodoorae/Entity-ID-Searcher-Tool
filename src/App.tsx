@@ -21,38 +21,31 @@ function App() {
   const [showScanLine, setShowScanLine] = useState(false);
 
   const getFoundScore = () => {
-    if (status === 'machine-verified') return 95;
-    if (status === 'ambiguous') return 45;
-    if (status === 'ai-invisible') return 0;
-    return null;
-  };
+  if (status === 'loading' || !result) return null;
+  if (status === 'ai-invisible') return 0;
 
-  const foundScore = getFoundScore();
-  const isHighScore = foundScore !== null && foundScore > 70;
-  const isLowScore = foundScore !== null && foundScore < 50;
+  // 1. Normalize Google's resultScore (Confidence)
+  // Most local businesses sit between 10 and 500. 
+  // We'll treat 600 as the "Gold Standard" for 100% confidence.
+  let baseScore = Math.min((result.resultScore / 600) * 100, 98);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!brandName.trim()) return;
+  // 2. Real Estate Specific Audit
+  // We check if the AI recognizes them as a RealEstateAgent or ProfessionalService
+  const isRealEstateEntity = result.types.some(t => 
+    ['RealEstateAgent', 'RealEstateListing', 'HomeAndConstructionBusiness'].includes(t)
+  );
 
-    setIsSearching(true);
-    setStatus('loading');
-    setResult(null);
-    setErrorMessage('');
-    setShowScanLine(true);
+  // 3. The "Legacy Tech" Penalty
+  // If the machine only sees them as a generic "Organization" or "Thing", 
+  // they are invisible to "Agents near me" queries.
+  if (!isRealEstateEntity) {
+    baseScore = baseScore * 0.6; // 40% reduction for lack of niche clarity
+  }
 
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-graph-search`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ query: brandName }),
-        }
-      );
+  // 4. Cap the results for the "Trust Gap"
+  // Even a well-known agent without proper Schema shouldn't exceed 65%
+  return Math.round(baseScore);
+};
 
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
