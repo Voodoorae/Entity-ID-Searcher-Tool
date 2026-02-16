@@ -20,18 +20,8 @@ function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const getFoundScore = () => {
-    if (status === 'ai-invisible') return 0;
-    // CRITICAL FIX: Use the actual decimal score from Google (0.05 = 5%)
-    if (result && result.resultScore !== undefined) {
-      return Math.min(Math.round(result.resultScore * 100), 100);
-    }
-    if (status === 'machine-verified') return 65; 
-    if (status === 'ambiguous') return 35;
-    return null;
-  };
-
-  const foundScore = getFoundScore();
+  // BRUTAL MATH: No defaults. Only shows what the API actually sends.
+  const foundScore = result?.resultScore ? Math.min(Math.round(result.resultScore * 100), 100) : (status === 'ai-invisible' ? 0 : null);
   const isLowScore = foundScore !== null && foundScore < 50;
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -52,6 +42,7 @@ function App() {
         body: JSON.stringify({ query: brandName }),
       });
       const data = await response.json();
+      
       if (data.status === 'machine-verified' || data.status === 'ambiguous') {
         setStatus(data.status);
         setResult(data.result);
@@ -60,7 +51,7 @@ function App() {
       }
     } catch (error) {
       setStatus('error');
-      setErrorMessage('Audit failed. Please try again.');
+      setErrorMessage('Audit failed.');
     } finally {
       setIsSearching(false);
     }
@@ -70,24 +61,24 @@ function App() {
     <div className="min-h-screen bg-black text-white px-4 py-16 font-sans">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <Radar className="w-12 h-12 text-emerald-400 mx-auto mb-4 animate-spin" style={{ animationDuration: '3s' }} />
+          <Radar className="w-12 h-12 text-emerald-400 mx-auto mb-4 animate-spin" />
           <h1 className="text-5xl font-bold mb-2">Entity ID <span className="text-emerald-400">Searcher</span></h1>
           <p className="text-gray-400">Audit how AI perceives your real estate authority</p>
         </div>
 
-        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8 shadow-2xl">
+        <div className="bg-gray-900/50 border border-gray-800 rounded-2xl p-8 mb-8">
           <form onSubmit={handleSearch} className="flex gap-3 mb-8">
             <input
               type="text"
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               placeholder="Agency Name..."
-              className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg outline-none focus:border-emerald-500 transition-all"
+              className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg outline-none focus:border-emerald-500"
             />
-            <button type="submit" className="px-8 py-3 bg-emerald-500 text-black rounded-lg font-bold hover:bg-emerald-400 transition-all">Audit</button>
+            <button type="submit" className="px-8 py-3 bg-emerald-500 text-black rounded-lg font-bold">Audit</button>
           </form>
 
-          {status === 'loading' && <p className="text-center text-emerald-400 animate-pulse">Querying Knowledge Graph...</p>}
+          {status === 'loading' && <p className="text-center text-emerald-400">Querying Knowledge Graph...</p>}
 
           {foundScore !== null && status !== 'loading' && (
             <div className="text-center mb-8">
@@ -101,7 +92,7 @@ function App() {
           {status === 'machine-verified' && result && (
             <div className="border border-emerald-500/30 bg-emerald-500/5 p-6 rounded-xl">
               <h3 className="text-2xl font-bold text-emerald-400 mb-2">{result.name}</h3>
-              <p className="text-gray-400 text-sm italic">{result.description || 'Verified entity found in Knowledge Graph.'}</p>
+              <p className="text-gray-400 text-sm italic">{result.description || 'Record found in Knowledge Graph.'}</p>
             </div>
           )}
         </div>
@@ -118,14 +109,12 @@ function App() {
                     Verified Location: <span className="text-red-500 font-mono font-bold uppercase">{result?.location || 'UNKNOWN / NOT INDEXED'}</span>
                   </p>
                   <p className="text-gray-400 text-sm leading-relaxed">
-                    AI models cannot confidently pinpoint your service area. You are currently invisible to "Agents in <span className="italic underline">{result?.location || 'Edinburgh'}</span>" queries.
+                    AI models cannot confidently pinpoint your service area. You are currently invisible to "Agents in <span className="italic underline">{result?.location || 'Your City'}</span>" queries.
                   </p>
                 </div>
               </div>
             )}
-            
             <h2 className="text-2xl font-bold mb-4">Secure Your AI Authority</h2>
-            <p className="text-gray-400 mb-8 text-sm">Your visibility is dangerously low. Claim your toolkit to verify your Entity signals.</p>
             <button className="w-full py-4 bg-emerald-500 text-black rounded-lg font-bold text-lg">
               Claim the £27 Toolkit
             </button>
