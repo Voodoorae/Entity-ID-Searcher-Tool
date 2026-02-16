@@ -20,28 +20,32 @@ function App() {
   const [errorMessage, setErrorMessage] = useState('');
   const [showScanLine, setShowScanLine] = useState(false);
 
-  const getFoundScore = () => {
-  if (status === 'loading' || !result) return null;
-  if (status === 'ai-invisible') return 0;
+ const getFoundScore = () => {
+    if (status === 'loading' || !result) return null;
+    if (status === 'ai-invisible') return 0;
 
-  // 1. Normalize Google's resultScore (Confidence)
-  // Most local businesses sit between 10 and 500. 
-  // We'll treat 600 as the "Gold Standard" for 100% confidence.
-  let baseScore = Math.min((result.resultScore / 600) * 100, 98);
+    // 1. NORMALIZE GOOGLE'S CONFIDENCE
+    // We treat a resultScore of 600 as the 'Gold Standard' for 100% confidence.
+    let baseScore = Math.min((result.resultScore / 600) * 100, 98);
 
-  // 2. Real Estate Specific Audit
-  // We check if the AI recognizes them as a RealEstateAgent or ProfessionalService
-  const isRealEstateEntity = result.types.some(t => 
-    ['RealEstateAgent', 'RealEstateListing', 'HomeAndConstructionBusiness'].includes(t)
-  );
+    // 2. REAL ESTATE NICHE AUDIT
+    // We check if the AI sees them as a specific Real Estate entity vs just a 'Thing'
+    const isRealEstateEntity = result.types.some(t => 
+      ['RealEstateAgent', 'RealEstateListing', 'HomeAndConstructionBusiness', 'Residence'].includes(t)
+    );
 
-  // 3. The "Legacy Tech" Penalty
-  // If the machine only sees them as a generic "Organization" or "Thing", 
-  // they are invisible to "Agents near me" queries.
-  if (!isRealEstateEntity) {
-    baseScore = baseScore * 0.6; // 40% reduction for lack of niche clarity
-  }
+    // 3. THE "ENTITY CLARITY" PENALTY
+    // If they aren't recognized as Real Estate specifically, they are 'confused' in the graph.
+    // We drop their score by 40% to reflect this "Trust Gap".
+    if (!isRealEstateEntity) {
+      baseScore = baseScore * 0.6;
+    }
 
+    // 4. AMBIGUITY CAP
+    if (status === 'ambiguous') return Math.min(Math.round(baseScore), 45);
+
+    return Math.round(baseScore);
+  };
   // 4. Cap the results for the "Trust Gap"
   // Even a well-known agent without proper Schema shouldn't exceed 65%
   return Math.round(baseScore);
