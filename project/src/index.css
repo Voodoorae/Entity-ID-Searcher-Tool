@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-space-black text-white;
+  }
+}
+
+@layer components {
+  .glassmorphism {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  .glow-border {
+    @apply border border-emerald-neon/50 shadow-lg shadow-emerald-neon/20;
+  }
+
+  .emerald-glow {
+    @apply text-emerald-neon drop-shadow-lg shadow-emerald-neon/50;
+  }
+
+  .scan-overlay {
+    @apply fixed inset-0 pointer-events-none;
+  }
+
+  .scan-line {
+    @apply absolute left-0 right-0 h-1 bg-gradient-to-b from-emerald-neon/50 to-transparent;
+    animation: scanDown 1.5s ease-in-out;
+  }
+}
+
+@keyframes scanDown {
+  0% {
+    top: 0;
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
