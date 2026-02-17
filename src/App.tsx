@@ -31,14 +31,31 @@ function App() {
     setStatus('loading');
     setResult(null);
 
+    // --- ENTITY RESOLUTION LOGIC ---
+    // This prevents "Identity Ambiguity" (e.g., Lindsays the Baker vs Lindsays the Estate Agent)
+    let processedQuery = brandName.trim();
+    
+    // Regular Expression to detect if input is a URL
+    const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/;
+    const isUrl = urlPattern.test(processedQuery);
+    
+    if (isUrl) {
+      // Clean the URL to pinpoint the "Source of Truth" domain
+      processedQuery = processedQuery
+        .replace(/^(?:https?:\/\/)?(?:www\.)?/i, "") // Remove protocol and www
+        .split('/')[0]                               // Remove sub-pages/paths
+        .toLowerCase();                              // Standardize to lowercase
+    }
+
     try {
+      // We use the cleaned 'processedQuery' for the API call to ensure Entity Clarity
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/knowledge-graph-search`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query: brandName }),
+        body: JSON.stringify({ query: processedQuery }),
       });
       const data = await response.json();
       if (data.status === 'machine-verified' || data.status === 'ambiguous') {
@@ -70,10 +87,12 @@ function App() {
               type="text"
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
-              placeholder="e.g. Truscott Property..."
+              placeholder="Enter Brand Name or Website URL..."
               className="flex-1 px-4 py-3 bg-black border border-gray-700 rounded-lg outline-none focus:border-emerald-500"
             />
-            <button type="submit" className="px-8 py-3 bg-emerald-500 text-black rounded-lg font-bold">Audit</button>
+            <button type="submit" className="px-8 py-3 bg-emerald-500 text-black rounded-lg font-bold hover:bg-emerald-400 transition-colors">
+              Audit
+            </button>
           </form>
 
           {status === 'loading' && <p className="text-center text-emerald-400">Intercepting AI Signals...</p>}
@@ -145,14 +164,14 @@ function App() {
                   </p>
                   <p className="text-gray-400 text-sm leading-relaxed">
                     Google identifies you as a topic, but lacks the structured data to verify you as a local business. 
-                    This makes you invisible to "Real Estate Agents in <span className="italic underline">{result?.location || 'Edinburgh'}</span>" AI-driven searches.
+                    This makes you invisible to AI-driven local searches.
                   </p>
                 </div>
               </div>
             )}
             
             <h2 className="text-2xl font-bold mb-4">Fix Your Machine Identity</h2>
-            <p className="text-gray-400 mb-8 text-sm max-w-md mx-auto">Your agency is missing core structured signals. Download the £27 Toolkit to generate the Schema DNA Google needs.</p>
+            <p className="text-gray-400 mb-8 text-sm max-w-md mx-auto">Your agency is missing core structured signals. Claim the £27 Toolkit to generate the Schema DNA Google needs.</p>
             <button className="w-full py-4 bg-emerald-500 text-black rounded-lg font-bold text-lg hover:bg-emerald-400 transition-all shadow-[0_0_30px_rgba(16,185,129,0.2)]">
               Claim the £27 Toolkit
             </button>
